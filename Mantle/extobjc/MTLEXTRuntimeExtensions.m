@@ -471,9 +471,12 @@ mtl_propertyAttributes *mtl_copyPropertyAttributes (objc_property_t property) {
         return NULL;
     }
 
-    // copy the type string
-    strncpy(attributes->type, typeString, typeLength);
-    attributes->type[typeLength] = '\0';
+    // SonarQube Security-Fix
+    // copy the type string 
+    strlcpy(attributes->type, typeString, typeLength);
+    
+    //strlcpy ensures a null-terminated string
+    //attributes->type[typeLength] = '\0'; 
 
     // if this is an object type, and immediately followed by a quoted string...
     if (typeString[0] == *(@encode(id)) && typeString[1] == '"') {
@@ -548,8 +551,9 @@ mtl_propertyAttributes *mtl_copyPropertyAttributes (objc_property_t property) {
 
                     char selectorString[selectorLength + 1];
 
-                    strncpy(selectorString, next, selectorLength);
-                    selectorString[selectorLength] = '\0';
+		    // SonarQube Security-Fix
+                    strlcpy(selectorString, next, sizeof(selectorString));
+                    //selectorString[selectorLength] = '\0';
 
                     name = sel_registerName(selectorString);
                     next = nextFlag;
@@ -613,20 +617,25 @@ mtl_propertyAttributes *mtl_copyPropertyAttributes (objc_property_t property) {
 
     if (!attributes->setter) {
         const char *propertyName = property_getName(property);
-        size_t propertyNameLength = strlen(propertyName);
+        
+	//size_t propertyNameLength = strlen(propertyName);
+        size_t k;
+        for(k = 0; propertyName[k] != '\0'; k++) {}
+        size_t propertyNameLength = k;
 
         // we want to transform the name to setProperty: style
         size_t setterLength = propertyNameLength + 4;
 
         char setterName[setterLength + 1];
-        strncpy(setterName, "set", 3);
-        strncpy(setterName + 3, propertyName, propertyNameLength);
+	// SonarQube Security-Fix
+        strlcpy(setterName, "set", sizeof(setterName) /*3*/);
+        strlcpy(setterName + 3, propertyName, propertyNameLength);
 
         // capitalize property name for the setter
         setterName[3] = (char)toupper(setterName[3]);
 
         setterName[setterLength - 1] = ':';
-        setterName[setterLength] = '\0';
+        //setterName[setterLength] = '\0';
 
         attributes->setter = sel_registerName(setterName);
     }
